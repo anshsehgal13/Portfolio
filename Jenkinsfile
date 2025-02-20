@@ -114,25 +114,39 @@ pipeline {
     post {
         always {
             script {
-                def pipelineData = [
-                    pipeline_name: env.JOB_NAME,
-                    build_number: env.BUILD_NUMBER,
-                    execution_time: new Date().format("yyyy-MM-dd HH:mm:ss"),
-                    github_repo: env.GIT_URL ?: REPO_URL,
-                    commit_hash: env.GIT_COMMIT ?: "N/A",
-                    build_status: currentBuild.result ?: "SUCCESS",
-                    step_durations: [
-                        clone_repo: env.CLONE_TIME ?: "N/A",
-                        install_dependencies: env.INSTALL_TIME ?: "N/A",
-                        build_app: env.BUILD_TIME ?: "N/A",
-                        deploy: env.DEPLOY_TIME ?: "N/A"
+                try {
+                    // Extract pipeline build info and write to JSON
+                    def jsonData = [
+                        pipelineName: env.JOB_NAME,
+                        buildNumber: env.BUILD_NUMBER,
+                        githubRepo: env.GIT_URL ?: "Unknown",
+                        commitHash: env.GIT_COMMIT ?: "Unknown",
+                        executionTime: new Date().format("yyyy-MM-dd HH:mm:ss"),
+                        status: currentBuild.currentResult
                     ]
-                ]
-
-                writeJSON file: 'pipeline_build_info.json', json: pipelineData
-                sh 'cat pipeline_build_info.json'  // Display JSON file in console
+                    
+                    // Convert to JSON and write to file
+                    def jsonContent = groovy.json.JsonOutput.toJson(jsonData)
+                    writeFile file: "pipeline_build_info.json", text: jsonContent
+    
+                    // Print JSON file content for verification
+                    echo "Pipeline Build Info JSON Created: ${jsonContent}"
+    
+                } catch (Exception e) {
+                    echo "⚠️ Error writing JSON file: ${e}"
+                }
             }
         }
+    
+        success {
+            echo "✅ Pipeline completed successfully!"
+        }
+    
+        failure {
+            echo "❌ Pipeline failed!"
+        }
+    }
+
     }
 }
 
