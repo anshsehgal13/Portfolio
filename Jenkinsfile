@@ -143,12 +143,15 @@ pipeline {
         RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg" // Hardcoded Render Service ID
     }
 
+    // 🔹 Initialize stage data before using it
+    def stageData = [:]
+
     stages {
         stage('Clone Repository') {
             steps {
                 script {
                     startTime = System.currentTimeMillis()
-                    git branch: 'main', url: 'https://github.com/anshsehgal13/Portfolio/'
+                    git branch: 'main', url: 'https://github.com/anshsehgal13/Portfolio.git'
                 }
             }
             post {
@@ -270,4 +273,3 @@ pipeline {
         }
     }
 }
-
