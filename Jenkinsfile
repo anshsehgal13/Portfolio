@@ -141,12 +141,19 @@ pipeline {
 
     environment {
         RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg" // Hardcoded Render Service ID
+        RENDER_API_KEY = "rnd_qXmPDBgzdjGTrvsQRnZcqoz8Z22k" // Replace with actual key
     }
 
-    // 🔹 Initialize stage data before using it
-    def stageData = [:]
-
     stages {
+        stage('Initialize') {
+            steps {
+                script {
+                    def stageData = [:] // Now inside script block
+                    echo "✅ Pipeline initialized"
+                }
+            }
+        }
+
         stage('Clone Repository') {
             steps {
                 script {
@@ -221,8 +228,8 @@ pipeline {
                     startTime = System.currentTimeMillis()
                     sh """
                     curl -X POST -H "Accept: application/json" \
-                    -H "Authorization: Bearer rnd_qXmPDBgzdjGTrvsQRnZcqoz8Z22k" \
-                    https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys
+                    -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                    https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys
                     """
                 }
             }
@@ -245,9 +252,9 @@ pipeline {
             script {
                 try {
                     def jsonData = [
-                        pipelineName: env.JOB_NAME,
-                        buildNumber: env.BUILD_NUMBER,
-                        githubRepo: env.GIT_URL ?: "Unknown",
+                        pipelineName: env.JOB_NAME ?: "Unknown",
+                        buildNumber: env.BUILD_NUMBER ?: "Unknown",
+                        githubRepo: env.GIT_URL ?: "https://github.com/anshsehgal13/Portfolio",
                         commitHash: env.GIT_COMMIT ?: "Unknown",
                         executionTime: new Date().format("yyyy-MM-dd HH:mm:ss"),
                         status: currentBuild.currentResult,
