@@ -290,7 +290,7 @@ pipeline {
     agent any
 
     environment {
-        RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg"  // Replace with your actual Render Service ID
+        RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg"
         METADATA_FILE = "pipeline_metadata.json"
     }
 
@@ -300,7 +300,7 @@ pipeline {
                 script {
                     captureMetadata('Clone Repository')
                     try {
-                        sh 'git clone -b main https://github.com/anshsehgal13/Portfolio.git'
+                        sh 'git clone -b main https://github.com/anshsehgal13/Portfolio.git repo_dir'
                         updateMetadata('Clone Repository', 'SUCCESS')
                     } catch (Exception e) {
                         updateMetadata('Clone Repository', 'FAILURE')
@@ -314,9 +314,9 @@ pipeline {
             steps {
                 script {
                     captureMetadata('Install Dependencies')
-                    if (fileExists('package.json')) {
+                    if (fileExists('repo_dir/package.json')) {
                         try {
-                            sh 'npm install'
+                            sh 'cd repo_dir && npm install'
                             updateMetadata('Install Dependencies', 'SUCCESS')
                         } catch (Exception e) {
                             updateMetadata('Install Dependencies', 'FAILURE')
@@ -334,9 +334,9 @@ pipeline {
             steps {
                 script {
                     captureMetadata('Build App')
-                    if (fileExists('package.json')) {
+                    if (fileExists('repo_dir/package.json')) {
                         try {
-                            sh 'npm run build'
+                            sh 'cd repo_dir && npm run build'
                             updateMetadata('Build App', 'SUCCESS')
                         } catch (Exception e) {
                             updateMetadata('Build App', 'FAILURE')
@@ -371,8 +371,8 @@ pipeline {
     post {
         always {
             script {
-                echo "📄 Final Metadata:"
-                sh "cat ${env.WORKSPACE}/${env.METADATA_FILE}"
+                echo "📄 Final Metadata Content:"
+                sh "cat ${env.WORKSPACE}/${env.METADATA_FILE} || echo '❌ Metadata file not found'"
             }
         }
     }
@@ -380,16 +380,15 @@ pipeline {
 
 def captureMetadata(stageName) {
     def filePath = "${env.WORKSPACE}/${env.METADATA_FILE}"
+    def startTime = new Date().toString()
 
     try {
         if (!fileExists(filePath)) {
-            writeJSON file: filePath, json: []
+            writeFile file: filePath, text: '[]'  // Creates an empty JSON array if missing
             echo "📄 Metadata file created: ${filePath}"
         }
 
         def existingData = readJSON(file: filePath)
-        def startTime = new Date().toString()
-
         existingData << [
             "Pipeline Name": env.JOB_NAME ?: "Unknown",
             "Step Name": stageName,
@@ -412,7 +411,7 @@ def updateMetadata(stageName, status) {
     try {
         if (!fileExists(filePath)) {
             echo "⚠️ Metadata file missing, creating a new one."
-            writeJSON file: filePath, json: []
+            writeFile file: filePath, text: '[]'
         }
 
         def existingData = readJSON(file: filePath)
