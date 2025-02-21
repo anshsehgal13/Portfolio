@@ -292,7 +292,7 @@ pipeline {
     agent any
 
     environment {
-        RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg"  // Replace with your actual Render Service ID
+        RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg"
         METADATA_FILE = "pipeline_metadata.json"
     }
 
@@ -356,29 +356,26 @@ pipeline {
 // Function to capture and save metadata
 def captureMetadata(stageName) {
     def startTime = new Date()
-    
+    def durationStart = System.currentTimeMillis()
+    sleep 1
+    def durationEnd = System.currentTimeMillis()
+    def duration = (durationEnd - durationStart) / 1000.0
+
+    def metadata = [
+        "Pipeline Name": env.JOB_NAME ?: "Unknown",
+        "Step Name": stageName,
+        "Build Number": env.BUILD_NUMBER ?: "N/A",
+        "Date/Time of Execution": startTime.toString(),
+        "Step Duration (sec)": duration,
+        "Success/Failure Status": currentBuild.result ?: 'SUCCESS'
+    ]
+
+    def jsonMetadata = JsonOutput.toJson(metadata)
+    def filePath = "${env.WORKSPACE}/${env.METADATA_FILE}"
+
     try {
-        echo "🔹 Stage: ${stageName} started at ${startTime}"
+        echo "📊 Saving metadata: ${jsonMetadata}"
 
-        def durationStart = System.currentTimeMillis()
-        sleep 1  // Simulate execution time tracking
-        def durationEnd = System.currentTimeMillis()
-        def duration = (durationEnd - durationStart) / 1000.0 // Convert to seconds
-
-        def metadata = [
-            "Pipeline Name"        : env.JOB_NAME,
-            "Step Name"            : stageName,
-            "Build Number"         : env.BUILD_NUMBER,
-            "Date/Time of Execution": startTime.toString(),
-            "Step Duration (sec)"  : duration,
-            "Success/Failure Status": currentBuild.result ?: 'SUCCESS'
-        ]
-
-        // Convert metadata to JSON
-        def jsonMetadata = JsonOutput.toJson(metadata)
-
-        // Append data to JSON file
-        def filePath = "${env.WORKSPACE}/${env.METADATA_FILE}"
         if (fileExists(filePath)) {
             def existingData = readJSON(file: filePath)
             existingData << metadata
@@ -387,8 +384,8 @@ def captureMetadata(stageName) {
             writeJSON file: filePath, json: [metadata]
         }
 
-        echo "📊 Metadata saved: ${jsonMetadata}"
+        echo "✅ Metadata successfully saved!"
     } catch (Exception e) {
-        echo "❌ Error in capturing metadata: ${e.message}"
+        echo "❌ Error in saving metadata: ${e.message}"
     }
 }
