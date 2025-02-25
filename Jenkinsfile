@@ -62,8 +62,6 @@ pipeline {
         RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg"
     }
 
-    
-
     stages {
         stage('Clone Repository') {
             steps {
@@ -109,31 +107,32 @@ pipeline {
     }
 
     post {
-    always {
-        import groovy.json.JsonSlurper
-        import groovy.json.JsonOutput
-        
-        script {
-            def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
+        always {
+            script {
+                import groovy.json.JsonSlurper
+                import groovy.json.JsonOutput
+                
+                def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
+                
+                def username = "anshsehgal"
+                def apiToken = "1173445fd81fc4a572a6917cf51fe73c21"
+                def encodedAuth = "${username}:${apiToken}".bytes.encodeBase64().toString()
             
-            def username = "anshsehgal"
-            def apiToken = "1173445fd81fc4a572a6917cf51fe73c21"
-            def encodedAuth = "${username}:${apiToken}".bytes.encodeBase64().toString()
-        
-            def stageResponse = httpRequest(
-                acceptType: 'APPLICATION_JSON',
-                url: stageApiUrl,
-                customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
-            )
-        
-            def stageData = new JsonSlurper().parseText(stageResponse.content)
+                def stageResponse = httpRequest(
+                    acceptType: 'APPLICATION_JSON',
+                    url: stageApiUrl,
+                    customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                )
             
-            // Pretty-print JSON
-            def formattedStageData = JsonOutput.prettyPrint(JsonOutput.toJson(stageData))
-            
-            echo "Formatted Stage Data:\n${formattedStageData}"
+                def stageData = new JsonSlurper().parseText(stageResponse.content)
+                
+                // Pretty-print JSON
+                def formattedStageData = JsonOutput.prettyPrint(JsonOutput.toJson(stageData))
+                
+                echo "Formatted Stage Data:\n${formattedStageData}"
+            }
         }
-
+    }
 }
 
 
