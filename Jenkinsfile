@@ -110,7 +110,6 @@ pipeline {
         always {
             script {
                 try {
-                    // Encode Jenkins Credentials
                     def encodedAuth = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
 
                     // Fetch Build Metadata
@@ -122,10 +121,16 @@ pipeline {
                     )
 
                     // Debug: Print raw API response
-                    echo "Build API Response: ${buildResponse.content}"
+                    echo "Build API Raw Response: ${buildResponse.content}"
 
-                    // Parse Build Data
-                    def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
+                    // Check if response is valid JSON before parsing
+                    if (buildResponse.content && buildResponse.content.trim()) {
+                        def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
+                        echo "Parsed Build Data: ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(buildData))}"
+                    } else {
+                        echo "Build API returned an empty response."
+                        return
+                    }
 
                     // Fetch Stage Data
                     def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
@@ -136,30 +141,36 @@ pipeline {
                     )
 
                     // Debug: Print raw API response
-                    echo "Stage API Response: ${stageResponse.content}"
+                    echo "Stage API Raw Response: ${stageResponse.content}"
 
-                    // Parse Stage Data
-                    def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
+                    // Check if response is valid JSON before parsing
+                    if (stageResponse.content && stageResponse.content.trim()) {
+                        def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
+                        echo "Parsed Stage Data: ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(stageData))}"
 
-                    // Merge Data into JSON
-                    def payload = groovy.json.JsonOutput.toJson([
-                        build_info      : buildData,
-                        pipeline_stages : stageData
-                    ])
+                        // Convert LazyMap to JSON String
+                        def payload = groovy.json.JsonOutput.toJson([
+                            build_info: buildData,
+                            pipeline_stages: stageData
+                        ])
 
-                    // Debug: Print JSON Payload
-                    echo "Payload to API: ${payload}"
+                        // Debug: Print JSON Payload before sending
+                        echo "Final Payload: ${groovy.json.JsonOutput.prettyPrint(payload)}"
 
-                    // Send Data to External API
-                    def apiResponse = httpRequest(
-                        httpMode: 'POST',
-                        contentType: 'APPLICATION_JSON',
-                        url: API_ENDPOINT,
-                        requestBody: payload,
-                        customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
-                    )
+                        // Send Data to External API
+                        def apiResponse = httpRequest(
+                            httpMode: 'POST',
+                            contentType: 'APPLICATION_JSON',
+                            url: API_ENDPOINT,
+                            requestBody: payload,
+                            customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                        )
 
-                    echo "Response from API: ${apiResponse.status} - ${apiResponse.content}"
+                        echo "Response from API: ${apiResponse.status} - ${apiResponse.content}"
+
+                    } else {
+                        echo "Stage API returned an empty response."
+                    }
 
                 } catch (Exception e) {
                     echo "Error in post stage: ${e.getMessage()}"
