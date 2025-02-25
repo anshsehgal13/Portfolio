@@ -96,11 +96,7 @@ pipeline {
         stage('Deploy to Render') {
             steps {
                 script {
-                    sh """
-                    curl -X POST -H "Accept: application/json" \
-                    -H "Authorization: Bearer YOUR_RENDER_API_KEY" \
-                    https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys
-                    """
+                    sh 'echo "Deploying to Render..."'
                 }
             }
         }
@@ -109,76 +105,39 @@ pipeline {
     post {
         always {
             script {
-                try {
-                    def encodedAuth = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
+                def buildUrl = "${JENKINS_URL}job/${JOB_NAME}/lastBuild/api/json"
+                def stepUrl = "${JENKINS_URL}job/${JOB_NAME}/lastBuild/wfapi/describe"
 
-                    // Fetch Build Metadata
-                    def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
-                    def buildResponse = httpRequest(
-                        acceptType: 'APPLICATION_JSON',
-                        url: buildApiUrl,
-                        customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
-                    )
+                def buildData = httpRequest(
+                    url: buildUrl,
+                    authentication: 'jenkins_credentials',
+                    httpMode: 'GET',
+                    validResponseCodes: '200'
+                ).content
 
-                    // Debug: Print raw API response
-                    echo "Build API Raw Response: ${buildResponse.content}"
+                def stepData = httpRequest(
+                    url: stepUrl,
+                    authentication: 'jenkins_credentials',
+                    httpMode: 'GET',
+                    validResponseCodes: '200'
+                ).content
 
-                    // Check if response is valid JSON before parsing
-                    if (buildResponse.content && buildResponse.content.trim()) {
-                        def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
-                        echo "Parsed Build Data: ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(buildData))}"
-                    } else {
-                        echo "Build API returned an empty response."
-                        return
-                    }
+                def combinedData = [
+                    build: readJSON(text: buildData),
+                    steps: readJSON(text: stepData)
+                ]
 
-                    // Fetch Stage Data
-                    def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
-                    def stageResponse = httpRequest(
-                        acceptType: 'APPLICATION_JSON',
-                        url: stageApiUrl,
-                        customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
-                    )
-
-                    // Debug: Print raw API response
-                    echo "Stage API Raw Response: ${stageResponse.content}"
-
-                    // Check if response is valid JSON before parsing
-                    if (stageResponse.content && stageResponse.content.trim()) {
-                        def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
-                        echo "Parsed Stage Data: ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(stageData))}"
-
-                        // Convert LazyMap to JSON String
-                        def payload = groovy.json.JsonOutput.toJson([
-                            build_info: buildData,
-                            pipeline_stages: stageData
-                        ])
-
-                        // Debug: Print JSON Payload before sending
-                        echo "Final Payload: ${groovy.json.JsonOutput.prettyPrint(payload)}"
-
-                        // Send Data to External API
-                        def apiResponse = httpRequest(
-                            httpMode: 'POST',
-                            contentType: 'APPLICATION_JSON',
-                            url: API_ENDPOINT,
-                            requestBody: payload,
-                            customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
-                        )
-
-                        echo "Response from API: ${apiResponse.status} - ${apiResponse.content}"
-
-                    } else {
-                        echo "Stage API returned an empty response."
-                    }
-
-                } catch (Exception e) {
-                    echo "Error in post stage: ${e.getMessage()}"
-                }
+                httpRequest(
+                    url: API_ENDPOINT,
+                    httpMode: 'POST',
+                    contentType: 'APPLICATION_JSON',
+                    requestBody: groovy.json.JsonOutput.toJson(combinedData)
+                )
             }
         }
     }
 }
+
 
 
 
