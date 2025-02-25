@@ -104,10 +104,11 @@ pipeline {
     post {
     always {
         script {
-            def stageData = sh(
-                script: "curl -s -u anshsehgal:1173445fd81fc4a572a6917cf51fe73c21 http://51.21.196.223:8080/job/PortfolioCICD/lastBuild/wfapi/describe",
-                returnStdout: true
-            ).trim()
+            def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
+            def stageResponse = httpRequest acceptType: 'APPLICATION_JSON', 
+                url: stageApiUrl, 
+                authentication: 'jenkins-credentials'
+            def stageData = stageResponse.content
 
             echo "Stage Data: ${stageData}"
         }
