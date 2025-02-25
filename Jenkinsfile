@@ -109,9 +109,6 @@ pipeline {
     post {
         always {
             script {
-                import groovy.json.JsonSlurper
-                import groovy.json.JsonOutput
-
                 // Encode Jenkins Credentials for API Authentication
                 def encodedAuth = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
 
@@ -122,7 +119,7 @@ pipeline {
                     url: buildApiUrl,
                     customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
                 )
-                def buildData = new JsonSlurper().parseText(buildResponse.content)
+                def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
 
                 // Fetch Detailed Stage Data
                 def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
@@ -131,10 +128,10 @@ pipeline {
                     url: stageApiUrl,
                     customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
                 )
-                def stageData = new JsonSlurper().parseText(stageResponse.content)
+                def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
 
                 // Merge Build and Stage Data into JSON
-                def payload = JsonOutput.toJson([
+                def payload = groovy.json.JsonOutput.toJson([
                     build_info      : buildData,
                     pipeline_stages : stageData
                 ])
