@@ -54,6 +54,14 @@ pipeline {
     agent any
 
     environment {
+        JENKINS_USER = "anshsehgal"
+        JENKINS_TOKEN = "1173445fd81fc4a572a6917cf51fe73c21"
+        API_ENDPOINT = "http://13.60.71.149:3000/pipeline-metadata"
+        JENKINS_URL = "http://51.21.196.223:8080/"
+        JOB_NAME = "PortfolioCICD"
+    }
+
+    environment {
         RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg" // Your hardcoded Render service ID
     }
 
