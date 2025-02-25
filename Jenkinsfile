@@ -101,37 +101,37 @@ pipeline {
         }
     }
 
-    post {
-        always {
-            script {
-                try {
-                    def jsonData = [
-                        pipelineName: env.JOB_NAME,
-                        buildNumber: env.BUILD_NUMBER,
-                        githubRepo: env.GIT_URL ?: "Unknown",
-                        commitHash: env.GIT_COMMIT ?: "Unknown",
-                        executionTime: new Date().format("yyyy-MM-dd HH:mm:ss"),
-                        status: currentBuild.currentResult
-                    ]
+    // post {
+    //     always {
+    //         script {
+    //             try {
+    //                 def jsonData = [
+    //                     pipelineName: env.JOB_NAME,
+    //                     buildNumber: env.BUILD_NUMBER,
+    //                     githubRepo: env.GIT_URL ?: "Unknown",
+    //                     commitHash: env.GIT_COMMIT ?: "Unknown",
+    //                     executionTime: new Date().format("yyyy-MM-dd HH:mm:ss"),
+    //                     status: currentBuild.currentResult
+    //                 ]
 
-                    def jsonContent = groovy.json.JsonOutput.toJson(jsonData)
-                    writeFile file: "pipeline_build_info.json", text: jsonContent
-                    echo "✅ Pipeline Build Info JSON Created: ${jsonContent}"
+    //                 def jsonContent = groovy.json.JsonOutput.toJson(jsonData)
+    //                 writeFile file: "pipeline_build_info.json", text: jsonContent
+    //                 echo "✅ Pipeline Build Info JSON Created: ${jsonContent}"
 
-                } catch (Exception e) {
-                    echo "⚠️ Error writing JSON file: ${e}"
-                }
-            }
-        }
+    //             } catch (Exception e) {
+    //                 echo "⚠️ Error writing JSON file: ${e}"
+    //             }
+    //         }
+    //     }
 
-        success {
-            echo "✅ Pipeline completed successfully!"
-        }
+    //     success {
+    //         echo "✅ Pipeline completed successfully!"
+    //     }
 
-        failure {
-            echo "❌ Pipeline failed!"
-        }
-    }
+    //     failure {
+    //         echo "❌ Pipeline failed!"
+    //     }
+    // }
 }
 
 
