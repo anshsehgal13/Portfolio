@@ -113,11 +113,12 @@ pipeline {
         script {
             def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
             def stageResponse = httpRequest acceptType: 'APPLICATION_JSON', 
-                url: stageApiUrl, 
-                authentication: 'jenkins-credentials'
+                url: stageApiUrl
             def stageData = stageResponse.content
 
             echo "Stage Data: ${stageData}"
+
+)
         }
     }
 }
