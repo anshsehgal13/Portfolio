@@ -109,9 +109,6 @@ pipeline {
     post {
         always {
             script {
-                import groovy.json.JsonSlurper
-                import groovy.json.JsonOutput
-                
                 def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
                 
                 def username = "anshsehgal"
@@ -124,16 +121,17 @@ pipeline {
                     customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
                 )
             
-                def stageData = new JsonSlurper().parseText(stageResponse.content)
+                def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
                 
                 // Pretty-print JSON
-                def formattedStageData = JsonOutput.prettyPrint(JsonOutput.toJson(stageData))
+                def formattedStageData = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(stageData))
                 
                 echo "Formatted Stage Data:\n${formattedStageData}"
             }
         }
     }
 }
+
 
 
     // post {
