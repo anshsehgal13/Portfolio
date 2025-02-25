@@ -109,24 +109,46 @@ pipeline {
     post {
         always {
             script {
+                import groovy.json.JsonSlurper
+                import groovy.json.JsonOutput
+
+                // Encode Jenkins Credentials for API Authentication
+                def encodedAuth = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
+
+                // Fetch General Build Metadata
+                def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
+                def buildResponse = httpRequest(
+                    acceptType: 'APPLICATION_JSON',
+                    url: buildApiUrl,
+                    customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                )
+                def buildData = new JsonSlurper().parseText(buildResponse.content)
+
+                // Fetch Detailed Stage Data
                 def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
-                
-                def username = "anshsehgal"
-                def apiToken = "1173445fd81fc4a572a6917cf51fe73c21"
-                def encodedAuth = "${username}:${apiToken}".bytes.encodeBase64().toString()
-            
                 def stageResponse = httpRequest(
                     acceptType: 'APPLICATION_JSON',
                     url: stageApiUrl,
                     customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
                 )
-            
-                def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
-                
-                // Pretty-print JSON
-                def formattedStageData = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(stageData))
-                
-                echo "Formatted Stage Data:\n${formattedStageData}"
+                def stageData = new JsonSlurper().parseText(stageResponse.content)
+
+                // Merge Build and Stage Data into JSON
+                def payload = JsonOutput.toJson([
+                    build_info      : buildData,
+                    pipeline_stages : stageData
+                ])
+
+                // Send Data to External API
+                def apiResponse = httpRequest(
+                    httpMode: 'POST',
+                    contentType: 'APPLICATION_JSON',
+                    url: API_ENDPOINT,
+                    requestBody: payload,
+                    customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                )
+
+                echo "Response from API: ${apiResponse.status} - ${apiResponse.content}"
             }
         }
     }
