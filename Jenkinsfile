@@ -118,7 +118,6 @@ pipeline {
 
             echo "Stage Data: ${stageData}"
 
-)
         }
     }
 }
