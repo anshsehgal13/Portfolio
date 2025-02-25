@@ -109,47 +109,66 @@ pipeline {
     post {
         always {
             script {
-                // Encode Jenkins Credentials for API Authentication
-                def encodedAuth = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
+                try {
+                    // Encode Jenkins Credentials
+                    def encodedAuth = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
 
-                // Fetch General Build Metadata
-                def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
-                def buildResponse = httpRequest(
-                    acceptType: 'APPLICATION_JSON',
-                    url: buildApiUrl,
-                    customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
-                )
-                def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
+                    // Fetch Build Metadata
+                    def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
+                    def buildResponse = httpRequest(
+                        acceptType: 'APPLICATION_JSON',
+                        url: buildApiUrl,
+                        customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                    )
 
-                // Fetch Detailed Stage Data
-                def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
-                def stageResponse = httpRequest(
-                    acceptType: 'APPLICATION_JSON',
-                    url: stageApiUrl,
-                    customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
-                )
-                def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
+                    // Debug: Print raw API response
+                    echo "Build API Response: ${buildResponse.content}"
 
-                // Merge Build and Stage Data into JSON
-                def payload = groovy.json.JsonOutput.toJson([
-                    build_info      : buildData,
-                    pipeline_stages : stageData
-                ])
+                    // Parse Build Data
+                    def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
 
-                // Send Data to External API
-                def apiResponse = httpRequest(
-                    httpMode: 'POST',
-                    contentType: 'APPLICATION_JSON',
-                    url: API_ENDPOINT,
-                    requestBody: payload,
-                    customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
-                )
+                    // Fetch Stage Data
+                    def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
+                    def stageResponse = httpRequest(
+                        acceptType: 'APPLICATION_JSON',
+                        url: stageApiUrl,
+                        customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                    )
 
-                echo "Response from API: ${apiResponse.status} - ${apiResponse.content}"
+                    // Debug: Print raw API response
+                    echo "Stage API Response: ${stageResponse.content}"
+
+                    // Parse Stage Data
+                    def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
+
+                    // Merge Data into JSON
+                    def payload = groovy.json.JsonOutput.toJson([
+                        build_info      : buildData,
+                        pipeline_stages : stageData
+                    ])
+
+                    // Debug: Print JSON Payload
+                    echo "Payload to API: ${payload}"
+
+                    // Send Data to External API
+                    def apiResponse = httpRequest(
+                        httpMode: 'POST',
+                        contentType: 'APPLICATION_JSON',
+                        url: API_ENDPOINT,
+                        requestBody: payload,
+                        customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                    )
+
+                    echo "Response from API: ${apiResponse.status} - ${apiResponse.content}"
+
+                } catch (Exception e) {
+                    echo "Error in post stage: ${e.getMessage()}"
+                }
             }
         }
     }
 }
+
 
 
 
