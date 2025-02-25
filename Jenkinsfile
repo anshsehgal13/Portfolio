@@ -59,11 +59,10 @@ pipeline {
         API_ENDPOINT = "http://13.60.71.149:3000/pipeline-metadata"
         JENKINS_URL = "http://51.21.196.223:8080/"
         JOB_NAME = "PortfolioCICD"
+        RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg"
     }
 
-    environment {
-        RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg" // Your hardcoded Render service ID
-    }
+    
 
     stages {
         stage('Clone Repository') {
