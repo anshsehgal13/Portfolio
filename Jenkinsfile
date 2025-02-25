@@ -101,6 +101,20 @@ pipeline {
         }
     }
 
+    post {
+    always {
+        script {
+            def stageData = sh(
+                script: "curl -s -u anshsehgal:1173445fd81fc4a572a6917cf51fe73c21 http://51.21.196.223:8080/job/PortfolioCICD/lastBuild/wfapi/describe",
+                returnStdout: true
+            ).trim()
+
+            echo "Stage Data: ${stageData}"
+        }
+    }
+}
+
+
     // post {
     //     always {
     //         script {
