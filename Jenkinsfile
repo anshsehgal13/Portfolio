@@ -105,33 +105,24 @@ pipeline {
     post {
         always {
             script {
-                // Encode Jenkins Credentials for API Authentication
-                def encodedAuth = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
-
-                // Fetch General Build Metadata
-                def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
+                // Fetch Build Metadata directly with credentials in URL
+                def buildApiUrl = "http://${JENKINS_USER}:${JENKINS_TOKEN}@51.21.196.223:8080/job/${JOB_NAME}/lastBuild/api/json"
                 def buildResponse = httpRequest(
                     acceptType: 'APPLICATION_JSON',
-                    url: buildApiUrl,
-                    customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                    url: buildApiUrl
                 )
-                def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content) as LinkedHashMap
+                def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
 
-                // Fetch Detailed Stage Data
-                def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
+                // Fetch Stage Data directly with credentials in URL
+                def stageApiUrl = "http://${JENKINS_USER}:${JENKINS_TOKEN}@51.21.196.223:8080/job/${JOB_NAME}/lastBuild/wfapi/describe"
                 def stageResponse = httpRequest(
                     acceptType: 'APPLICATION_JSON',
-                    url: stageApiUrl,
-                    customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                    url: stageApiUrl
                 )
-                def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content) as LinkedHashMap
-
-                // Convert LazyMap to Standard Map
-                def convertedBuildData = buildData.collectEntries { key, value -> [(key): value] }
-                def convertedStageData = stageData.collectEntries { key, value -> [(key): value] }
+                def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
 
                 // Combine Data
-                def combinedData = [build: convertedBuildData, steps: convertedStageData]
+                def combinedData = [build: buildData, steps: stageData]
 
                 // Post Data to API
                 httpRequest(
