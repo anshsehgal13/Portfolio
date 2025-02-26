@@ -74,7 +74,7 @@ pipeline {
                     if (fileExists('package.json')) {
                         sh 'npm install'
                     } else {
-                        echo "No package.json found, skipping dependency installation."
+                        echo "⚠ No package.json found, skipping dependency installation."
                     }
                 }
             }
@@ -86,7 +86,7 @@ pipeline {
                     if (fileExists('package.json')) {
                         sh 'npm run build'
                     } else {
-                        echo "No build step required for static HTML site."
+                        echo "⚠ No build step required for static HTML site."
                     }
                 }
             }
@@ -95,7 +95,7 @@ pipeline {
         stage('Deploy to Render') {
             steps {
                 script {
-                    sh 'echo "Deploying to Render..."'
+                    sh 'echo "🚀 Deploying to Render..."'
                 }
             }
         }
@@ -104,52 +104,82 @@ pipeline {
     post {
         always {
             script {
-                // Encode credentials in Base64 for Basic Authentication
-                def credentials = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
+                try {
+                    def credentials = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
+                    def crumb = null
+                    def buildData = null
+                    def stageData = null
 
-                // Get CSRF Crumb (needed if CSRF protection is enabled)
-                def crumbResponse = httpRequest(
-                    acceptType: 'APPLICATION_JSON',
-                    url: "${JENKINS_URL}/crumbIssuer/api/json",
-                    customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
-                )
-                def crumb = new groovy.json.JsonSlurper().parseText(crumbResponse.content).crumb
+                    // Fetch CSRF Crumb (if required)
+                    try {
+                        def crumbResponse = httpRequest(
+                            acceptType: 'APPLICATION_JSON',
+                            url: "${JENKINS_URL}/crumbIssuer/api/json",
+                            customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
+                        )
+                        println "🔹 Crumb Response: ${crumbResponse.content}"
+                        crumb = new groovy.json.JsonSlurper().parseText(crumbResponse.content).crumb
+                    } catch (Exception e) {
+                        echo "⚠ Crumb fetch failed: ${e.message}"
+                    }
 
-                // Fetch Build Metadata
-                def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
-                def buildResponse = httpRequest(
-                    acceptType: 'APPLICATION_JSON',
-                    url: buildApiUrl,
-                    customHeaders: [
-                        [name: 'Authorization', value: "Basic ${credentials}"],
-                        [name: 'Jenkins-Crumb', value: crumb]
-                    ]
-                )
-                def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
+                    // Fetch Build Metadata
+                    try {
+                        def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
+                        def buildResponse = httpRequest(
+                            acceptType: 'APPLICATION_JSON',
+                            url: buildApiUrl,
+                            customHeaders: [
+                                [name: 'Authorization', value: "Basic ${credentials}"],
+                                [name: 'Jenkins-Crumb', value: crumb ?: ""]
+                            ]
+                        )
+                        println "🔹 Build Metadata Response: ${buildResponse.content}"
+                        buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
+                    } catch (Exception e) {
+                        echo "⚠ Build metadata fetch failed: ${e.message}"
+                    }
 
-                // Fetch Stage Data
-                def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
-                def stageResponse = httpRequest(
-                    acceptType: 'APPLICATION_JSON',
-                    url: stageApiUrl,
-                    customHeaders: [
-                        [name: 'Authorization', value: "Basic ${credentials}"],
-                        [name: 'Jenkins-Crumb', value: crumb]
-                    ]
-                )
-                def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
+                    // Fetch Stage Data
+                    try {
+                        def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
+                        def stageResponse = httpRequest(
+                            acceptType: 'APPLICATION_JSON',
+                            url: stageApiUrl,
+                            customHeaders: [
+                                [name: 'Authorization', value: "Basic ${credentials}"],
+                                [name: 'Jenkins-Crumb', value: crumb ?: ""]
+                            ]
+                        )
+                        println "🔹 Stage Metadata Response: ${stageResponse.content}"
+                        stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
+                    } catch (Exception e) {
+                        echo "⚠ Stage metadata fetch failed: ${e.message}"
+                    }
 
-                // Combine Data
-                def combinedData = [build: buildData, steps: stageData]
+                    // Combine Data
+                    if (buildData && stageData) {
+                        def combinedData = [build: buildData, steps: stageData]
+                        println "🔹 Final API Payload: ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(combinedData))}"
 
-                // Post Data to API Endpoint
-                httpRequest(
-                    url: API_ENDPOINT,
-                    httpMode: 'POST',
-                    contentType: 'APPLICATION_JSON',
-                    requestBody: groovy.json.JsonOutput.toJson(combinedData),
-                    customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
-                )
+                        try {
+                            httpRequest(
+                                url: API_ENDPOINT,
+                                httpMode: 'POST',
+                                contentType: 'APPLICATION_JSON',
+                                requestBody: groovy.json.JsonOutput.toJson(combinedData),
+                                customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
+                            )
+                            echo "✅ Data successfully posted to API."
+                        } catch (Exception e) {
+                            echo "⚠ API post request failed: ${e.message}"
+                        }
+                    } else {
+                        echo "⚠ Skipping API post due to missing build or stage data."
+                    }
+                } catch (Exception e) {
+                    echo "❌ Unexpected error in post condition: ${e.message}"
+                }
             }
         }
     }
