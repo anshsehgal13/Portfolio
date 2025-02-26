@@ -1,0 +1,146 @@
+// import groovy.json.JsonSlurperClassic
+// import groovy.json.JsonOutput
+
+pipeline {
+    agent any
+
+    environment {
+        JENKINS_USER = "anshsehgal"
+        JENKINS_TOKEN = "1173445fd81fc4a572a6917cf51fe73c21"
+        API_ENDPOINT = "http://13.60.71.149:3000/pipeline-metadata"
+        JENKINS_URL = "http://51.21.196.223:8080/"
+        JOB_NAME = "Portfolio1CICD"
+        RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg"
+    }
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/anshsehgal13/Portfolio/'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    if (fileExists('package.json')) {
+                        sh 'npm install'
+                    } else {
+                        echo "⚠ No package.json found, skipping dependency installation."
+                    }
+                }
+            }
+        }
+
+        stage('Build Website') {
+            steps {
+                script {
+                    if (fileExists('package.json')) {
+                        sh 'npm run build'
+                    } else {
+                        echo "⚠ No build step required for static HTML site."
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Render') {
+            steps {
+                script {
+                    sh 'echo "🚀 Deploying to Render..."'
+                }
+            }
+        }
+    }
+
+    // post {
+    //     always {
+    //         script {
+    //             try {
+    //                 def credentials = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
+    //                 def crumb = null
+    //                 def buildData = null
+    //                 def stageData = null
+
+    //                 // 🔹 Fetch CSRF Crumb (if required)
+    //                 try {
+    //                     def crumbResponse = httpRequest(
+    //                         acceptType: 'APPLICATION_JSON',
+    //                         url: "${JENKINS_URL}/crumbIssuer/api/json",
+    //                         customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
+    //                     )
+    //                     crumb = new JsonSlurperClassic().parseText(crumbResponse.content).crumb
+    //                     echo "✅ CSRF Crumb fetched: ${crumb}"
+    //                 } catch (Exception e) {
+    //                     echo "⚠ Crumb fetch failed: ${e.message}"
+    //                 }
+
+    //                 // 🔹 Fetch Build Metadata
+    //                 try {
+    //                     def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
+    //                     def buildResponse = httpRequest(
+    //                         acceptType: 'APPLICATION_JSON',
+    //                         url: buildApiUrl,
+    //                         customHeaders: crumb ? [
+    //                             [name: 'Authorization', value: "Basic ${credentials}"],
+    //                             [name: 'Jenkins-Crumb', value: crumb]
+    //                         ] : [[name: 'Authorization', value: "Basic ${credentials}"]]
+    //                     )
+    //                     buildData = new JsonSlurperClassic().parseText(buildResponse.content)
+    //                     echo "✅ Build Metadata Fetched Successfully"
+    //                 } catch (Exception e) {
+    //                     echo "⚠ Build metadata fetch failed: ${e.message}"
+    //                 }
+
+    //                 // 🔹 Fetch Stage Data
+    //                 try {
+    //                     def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
+    //                     def stageResponse = httpRequest(
+    //                         acceptType: 'APPLICATION_JSON',
+    //                         url: stageApiUrl,
+    //                         customHeaders: crumb ? [
+    //                             [name: 'Authorization', value: "Basic ${credentials}"],
+    //                             [name: 'Jenkins-Crumb', value: crumb]
+    //                         ] : [[name: 'Authorization', value: "Basic ${credentials}"]]
+    //                     )
+    //                     def rawStageData = stageResponse.content
+    //                     echo "🔹 Raw Stage Data: ${rawStageData}"
+                        
+    //                     if (rawStageData && rawStageData != "null") {
+    //                         stageData = new JsonSlurperClassic().parseText(rawStageData)
+    //                         echo "✅ Stage Metadata Fetched Successfully"
+    //                     } else {
+    //                         echo "⚠ Stage metadata response was empty or null."
+    //                     }
+    //                 } catch (Exception e) {
+    //                     echo "⚠ Stage metadata fetch failed: ${e.message}"
+    //                 }
+
+    //                 // 🔹 Combine & Post Data
+    //                 if (buildData && stageData) {
+    //                     def combinedData = [build: buildData, steps: stageData]
+    //                     echo "🔹 Final API Payload: ${JsonOutput.prettyPrint(JsonOutput.toJson(combinedData))}"
+
+    //                     try {
+    //                         httpRequest(
+    //                             url: API_ENDPOINT,
+    //                             httpMode: 'POST',
+    //                             contentType: 'APPLICATION_JSON',
+    //                             requestBody: JsonOutput.toJson(combinedData),
+    //                             customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
+    //                         )
+    //                         echo "✅ Data successfully posted to API."
+    //                     } catch (Exception e) {
+    //                         echo "⚠ API post request failed: ${e.message}"
+    //                     }
+    //                 } else {
+    //                     echo "⚠ Skipping API post due to missing build or stage data."
+    //                 }
+    //             } catch (Exception e) {
+    //                 echo "❌ Unexpected error in post condition: ${e.message}"
+    //             }
+    //         }
+    //     }
+    // }
+}
+
