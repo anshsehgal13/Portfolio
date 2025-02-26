@@ -49,6 +49,9 @@
 // }
 
 
+import groovy.json.JsonSlurperClassic
+import groovy.json.JsonOutput
+
 pipeline {
     agent any
 
@@ -110,64 +113,71 @@ pipeline {
                     def buildData = null
                     def stageData = null
 
-                    // Fetch CSRF Crumb (if required)
+                    // 🔹 Fetch CSRF Crumb (if required)
                     try {
                         def crumbResponse = httpRequest(
                             acceptType: 'APPLICATION_JSON',
                             url: "${JENKINS_URL}/crumbIssuer/api/json",
                             customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
                         )
-                        println "🔹 Crumb Response: ${crumbResponse.content}"
-                        crumb = new groovy.json.JsonSlurper().parseText(crumbResponse.content).crumb
+                        crumb = new JsonSlurperClassic().parseText(crumbResponse.content).crumb
+                        echo "✅ CSRF Crumb fetched: ${crumb}"
                     } catch (Exception e) {
                         echo "⚠ Crumb fetch failed: ${e.message}"
                     }
 
-                    // Fetch Build Metadata
+                    // 🔹 Fetch Build Metadata
                     try {
                         def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
                         def buildResponse = httpRequest(
                             acceptType: 'APPLICATION_JSON',
                             url: buildApiUrl,
-                            customHeaders: [
+                            customHeaders: crumb ? [
                                 [name: 'Authorization', value: "Basic ${credentials}"],
-                                [name: 'Jenkins-Crumb', value: crumb ?: ""]
-                            ]
+                                [name: 'Jenkins-Crumb', value: crumb]
+                            ] : [[name: 'Authorization', value: "Basic ${credentials}"]]
                         )
-                        println "🔹 Build Metadata Response: ${buildResponse.content}"
-                        buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
+                        buildData = new JsonSlurperClassic().parseText(buildResponse.content)
+                        echo "✅ Build Metadata Fetched Successfully"
                     } catch (Exception e) {
                         echo "⚠ Build metadata fetch failed: ${e.message}"
                     }
 
-                    // Fetch Stage Data
+                    // 🔹 Fetch Stage Data
                     try {
                         def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
                         def stageResponse = httpRequest(
                             acceptType: 'APPLICATION_JSON',
                             url: stageApiUrl,
-                            customHeaders: [
+                            customHeaders: crumb ? [
                                 [name: 'Authorization', value: "Basic ${credentials}"],
-                                [name: 'Jenkins-Crumb', value: crumb ?: ""]
-                            ]
+                                [name: 'Jenkins-Crumb', value: crumb]
+                            ] : [[name: 'Authorization', value: "Basic ${credentials}"]]
                         )
-                        println "🔹 Stage Metadata Response: ${stageResponse.content}"
-                        stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content) ?: stageResponse.content
+                        def rawStageData = stageResponse.content
+                        echo "🔹 Raw Stage Data: ${rawStageData}"
+                        
+                        if (rawStageData && rawStageData != "null") {
+                            stageData = new JsonSlurperClassic().parseText(rawStageData)
+                            echo "✅ Stage Metadata Fetched Successfully"
+                        } else {
+                            echo "⚠ Stage metadata response was empty or null."
+                        }
                     } catch (Exception e) {
                         echo "⚠ Stage metadata fetch failed: ${e.message}"
                     }
 
-                    // Combine Data
+                    // 🔹 Combine & Post Data
                     if (buildData && stageData) {
                         def combinedData = [build: buildData, steps: stageData]
-                        println "🔹 Final API Payload: ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(combinedData))}"
+                        echo "🔹 Final API Payload: ${JsonOutput.prettyPrint(JsonOutput.toJson(combinedData))}"
 
                         try {
                             httpRequest(
                                 url: API_ENDPOINT,
                                 httpMode: 'POST',
                                 contentType: 'APPLICATION_JSON',
-                                requestBody: groovy.json.JsonOutput.toJson(combinedData),
+                                requestBody: JsonOutput.toJson(combinedData),
                                 customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
                             )
                             echo "✅ Data successfully posted to API."
@@ -184,7 +194,6 @@ pipeline {
         }
     }
 }
-
 
 
 
