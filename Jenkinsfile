@@ -152,7 +152,7 @@ pipeline {
                             ]
                         )
                         println "🔹 Stage Metadata Response: ${stageResponse.content}"
-                        stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
+                        stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content) ?: stageResponse.content
                     } catch (Exception e) {
                         echo "⚠ Stage metadata fetch failed: ${e.message}"
                     }
@@ -184,7 +184,6 @@ pipeline {
         }
     }
 }
-
 
 
 
