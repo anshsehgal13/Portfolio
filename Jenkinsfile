@@ -115,7 +115,7 @@ pipeline {
                     url: buildApiUrl,
                     customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
                 )
-                def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
+                def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content) as LinkedHashMap
 
                 // Fetch Detailed Stage Data
                 def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
@@ -124,10 +124,14 @@ pipeline {
                     url: stageApiUrl,
                     customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
                 )
-                def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
+                def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content) as LinkedHashMap
+
+                // Convert LazyMap to Standard Map
+                def convertedBuildData = buildData.collectEntries { key, value -> [(key): value] }
+                def convertedStageData = stageData.collectEntries { key, value -> [(key): value] }
 
                 // Combine Data
-                def combinedData = [build: buildData, steps: stageData]
+                def combinedData = [build: convertedBuildData, steps: convertedStageData]
 
                 // Post Data to API
                 httpRequest(
@@ -140,6 +144,7 @@ pipeline {
         }
     }
 }
+
 
 
 
