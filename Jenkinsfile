@@ -105,28 +105,31 @@ pipeline {
     post {
         always {
             script {
-                def buildUrl = "${JENKINS_URL}job/${JOB_NAME}/lastBuild/api/json"
-                def stepUrl = "${JENKINS_URL}job/${JOB_NAME}/lastBuild/wfapi/describe"
+                // Encode Jenkins Credentials for API Authentication
+                def encodedAuth = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
 
-                def buildData = httpRequest(
-                    url: buildUrl,
-                    authentication: 'jenkins_credentials',
-                    httpMode: 'GET',
-                    validResponseCodes: '200'
-                ).content
+                // Fetch General Build Metadata
+                def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
+                def buildResponse = httpRequest(
+                    acceptType: 'APPLICATION_JSON',
+                    url: buildApiUrl,
+                    customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                )
+                def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
 
-                def stepData = httpRequest(
-                    url: stepUrl,
-                    authentication: 'jenkins_credentials',
-                    httpMode: 'GET',
-                    validResponseCodes: '200'
-                ).content
+                // Fetch Detailed Stage Data
+                def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
+                def stageResponse = httpRequest(
+                    acceptType: 'APPLICATION_JSON',
+                    url: stageApiUrl,
+                    customHeaders: [[name: 'Authorization', value: "Basic ${encodedAuth}"]]
+                )
+                def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
 
-                def combinedData = [
-                    build: readJSON(text: buildData),
-                    steps: readJSON(text: stepData)
-                ]
+                // Combine Data
+                def combinedData = [build: buildData, steps: stageData]
 
+                // Post Data to API
                 httpRequest(
                     url: API_ENDPOINT,
                     httpMode: 'POST',
@@ -137,6 +140,7 @@ pipeline {
         }
     }
 }
+
 
 
 
