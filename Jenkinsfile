@@ -49,7 +49,6 @@
 // }
 
 
-
 pipeline {
     agent any
 
@@ -105,31 +104,51 @@ pipeline {
     post {
         always {
             script {
-                // Fetch Build Metadata directly with credentials in URL
-                def buildApiUrl = "http://${JENKINS_USER}:${JENKINS_TOKEN}@51.21.196.223:8080/job/${JOB_NAME}/lastBuild/api/json"
+                // Encode credentials in Base64 for Basic Authentication
+                def credentials = "${JENKINS_USER}:${JENKINS_TOKEN}".bytes.encodeBase64().toString()
+
+                // Get CSRF Crumb (needed if CSRF protection is enabled)
+                def crumbResponse = httpRequest(
+                    acceptType: 'APPLICATION_JSON',
+                    url: "${JENKINS_URL}/crumbIssuer/api/json",
+                    customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
+                )
+                def crumb = new groovy.json.JsonSlurper().parseText(crumbResponse.content).crumb
+
+                // Fetch Build Metadata
+                def buildApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json"
                 def buildResponse = httpRequest(
                     acceptType: 'APPLICATION_JSON',
-                    url: buildApiUrl
+                    url: buildApiUrl,
+                    customHeaders: [
+                        [name: 'Authorization', value: "Basic ${credentials}"],
+                        [name: 'Jenkins-Crumb', value: crumb]
+                    ]
                 )
                 def buildData = new groovy.json.JsonSlurper().parseText(buildResponse.content)
 
-                // Fetch Stage Data directly with credentials in URL
-                def stageApiUrl = "http://${JENKINS_USER}:${JENKINS_TOKEN}@51.21.196.223:8080/job/${JOB_NAME}/lastBuild/wfapi/describe"
+                // Fetch Stage Data
+                def stageApiUrl = "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/wfapi/describe"
                 def stageResponse = httpRequest(
                     acceptType: 'APPLICATION_JSON',
-                    url: stageApiUrl
+                    url: stageApiUrl,
+                    customHeaders: [
+                        [name: 'Authorization', value: "Basic ${credentials}"],
+                        [name: 'Jenkins-Crumb', value: crumb]
+                    ]
                 )
                 def stageData = new groovy.json.JsonSlurper().parseText(stageResponse.content)
 
                 // Combine Data
                 def combinedData = [build: buildData, steps: stageData]
 
-                // Post Data to API
+                // Post Data to API Endpoint
                 httpRequest(
                     url: API_ENDPOINT,
                     httpMode: 'POST',
                     contentType: 'APPLICATION_JSON',
-                    requestBody: groovy.json.JsonOutput.toJson(combinedData)
+                    requestBody: groovy.json.JsonOutput.toJson(combinedData),
+                    customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
                 )
             }
         }
