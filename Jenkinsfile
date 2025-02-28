@@ -218,7 +218,7 @@ pipeline {
         JENKINS_URL = "http://51.21.196.223:8080/"
         JOB_NAME = "PortfolioCICD"
         RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg"
-        SECRET_KEY = "supersecurekey123"  // Change this to a strong secret key
+        SECRET_KEY = "randomsecretkey"  // Change this to a strong secret key
     }
 
     stages {
