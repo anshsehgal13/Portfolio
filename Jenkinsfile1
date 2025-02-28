@@ -50,19 +50,6 @@ pipeline {
             }
         }
     }
-
-    post {
-        success {
-            script {
-                sh """
-                    curl -X POST "$API_ENDPOINT" \
-                    -H "Content-Type: application/json" \
-                    -H "X-Signature: $(echo -n "$BUILD_URL" | openssl dgst -sha256 -hmac "$SECRET_KEY" | cut -d ' ' -f2)" \
-                    -d '{}'
-                """
-            }
-        }
-    }
 }
 
     // post {
