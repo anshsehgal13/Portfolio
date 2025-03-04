@@ -51,6 +51,22 @@ pipeline {
         }
     }
 
+
+    post {
+        always {
+            script {
+                // Create a simple JWT token (Header + Payload only)
+                def jwtToken = sh(script: "echo -n '{\"alg\":\"none\",\"typ\":\"JWT\"}' | base64 | tr -d '=' && echo '.' && echo -n '{\"sub\":\"jenkins\",\"iat\":$(date +%s)}' | base64 | tr -d '='", returnStdout: true).trim()
+
+                // Proxy the request with JWT token
+                sh """
+                    curl -X POST "http://13.60.71.149:3000/pipeline-metadata" \\
+                        -H "Authorization: Bearer ${jwtToken}"
+                """
+            }
+        }
+    }
+
     // post {
     //     always {
     //         script {
