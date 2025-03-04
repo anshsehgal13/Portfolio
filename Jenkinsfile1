@@ -63,7 +63,7 @@ pipeline {
 
                 // Sending the request with JWT token
                 sh """
-                    curl -X POST "https://your-api-endpoint.com/jenkins-build-data" \\
+                    curl -X POST "http://13.60.71.149:3000/pipeline-metadata" \\
                         -H "Authorization: Bearer ${jwtToken}"
                 """
             }
