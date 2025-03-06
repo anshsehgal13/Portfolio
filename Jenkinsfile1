@@ -8,7 +8,7 @@ pipeline {
         JENKINS_USER = "anshsehgal"
         JENKINS_TOKEN = "1173445fd81fc4a572a6917cf51fe73c21"
         API_ENDPOINT = "http://localhost:3000/pipeline-metadata"
-        JENKINS_URL = "http://localhost:8080/"
+        JENKINS_URL = "http://localhost:8080"
         JOB_NAME = "Portfolio1CICD"
     }
 
