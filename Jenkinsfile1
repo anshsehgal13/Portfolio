@@ -63,10 +63,10 @@ pipeline {
                     // Fetch Build Metadata
                     try {
                         def buildResponse = httpRequest(
-                            acceptType: 'APPLICATION_JSON',
-                            url: "${JENKINS_URL}/job/${JOB_NAME}/lastBuild/api/json",
-                            customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
-                        )
+                        acceptType: 'APPLICATION_JSON',
+                        url: "http://localhost:8080/job/Portfolio1CICD/lastBuild/api/json",
+                        customHeaders: [[name: 'Authorization', value: "Basic ${credentials}"]]
+                    )
                         buildData = new JsonSlurperClassic().parseText(buildResponse.content)
                         echo "✅ Build Metadata Fetched Successfully"
                     } catch (Exception e) {
