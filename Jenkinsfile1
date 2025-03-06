@@ -5,7 +5,7 @@ pipeline {
     agent any
 
     environment {
-        JENKINS_USER = "anshsehgal"
+        JENKINS_USER = "anshsehgal03"
         JENKINS_TOKEN = "1173445fd81fc4a572a6917cf51fe73c21"
         API_ENDPOINT = "http://localhost:3000/pipeline-metadata"
         JENKINS_URL = "http://localhost:8080"
