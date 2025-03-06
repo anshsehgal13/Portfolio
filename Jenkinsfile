@@ -214,7 +214,7 @@ pipeline {
     environment {
         JENKINS_USER = "anshsehgal"
         JENKINS_TOKEN = "1173445fd81fc4a572a6917cf51fe73c21"
-        API_ENDPOINT = "http://13.60.71.149:3000/pipeline-metadata"
+        API_ENDPOINT = "https://0e6c-192-245-162-37.ngrok-free.app/pipeline-metadata"
         JENKINS_URL = "http://51.21.196.223:8080/"
         JOB_NAME = "PortfolioCICD"
         RENDER_SERVICE_ID = "csn8pkdds78s7391dpsg"
