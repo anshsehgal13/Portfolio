@@ -6,7 +6,7 @@ pipeline {
 
     environment {
         JENKINS_USER = "anshsehgal03"
-        JENKINS_TOKEN = "1173445fd81fc4a572a6917cf51fe73c21"
+        JENKINS_TOKEN = "111f6c4ef5414f3179be58d86d9301eef8"
         API_ENDPOINT = "http://localhost:3000/pipeline-metadata"
         JENKINS_URL = "http://localhost:8080"
         JOB_NAME = "Portfolio1CICD"
