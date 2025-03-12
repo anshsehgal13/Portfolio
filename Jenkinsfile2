@@ -7,7 +7,7 @@ pipeline {
         API_ENDPOINT = "http://localhost:3000/webhook"
         JENKINS_URL = "http://localhost:8080"
         JOB_NAME = "Portfolio1CICD"
-        IV = "8c17201dbaad82a2aafe93f249ea46a4"
+        IV = "783c88284582f0116279dee8d657b8e0"
         SECRET_KEY="d7dabd80346e46ab4b02c37520570bf3c563328bfedb453f25e504fd6e164a1c"
     }
 
