@@ -5,11 +5,12 @@ pipeline {
     agent any
 
     environment {
-        JENKINS_USER = "anshsehgal03"
-        JENKINS_TOKEN = "111f6c4ef5414f3179be58d86d9301eef8"
+        GITHUB_USERNAME = "anshsehgal03"
+        API_TOKEN = "111f6c4ef5414f3179be58d86d9301eef8"
         API_ENDPOINT = "http://localhost:3000/pipeline-metadata"
         JENKINS_URL = "http://localhost:8080"
         JOB_NAME = "Portfolio1CICD"
+        IV_KEY=8c17201dbaad82a2aafe93f249ea46a4
     }
 
     stages {
@@ -61,9 +62,9 @@ pipeline {
                     string(credentialsId: 'secret-key', variable: 'SECRET_KEY'),
                     string(credentialsId: 'iv-key', variable: 'IV_KEY')
                 ]) {
-                    def API_URL_1 = "http://3.111.41.177:8080/job/TestPipeline/${env.BUILD_NUMBER}/api/json"
-                    def API_URL_2 = "http://3.111.41.177:8080/job/TestPipeline/${env.BUILD_NUMBER}/wfapi/describe"
-                    def WEBHOOK_URL = "https://a646-192-245-162-37.ngrok-free.app/webhook"
+                    def API_URL_1 = "http://localhost:8080/job/Portfolio1CICD//${env.BUILD_NUMBER}/api/json"
+                    def API_URL_2 = "http://localhost:8080/job/Portfolio1CICD//${env.BUILD_NUMBER}/wfapi/describe"
+                    def WEBHOOK_URL = "http://localhost:3000/pipeline-metadata"
 
                     echo "Fetching Jenkins API Data..."
 
