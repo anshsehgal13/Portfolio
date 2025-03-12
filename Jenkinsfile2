@@ -20,7 +20,11 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    sh 'npm install'
+                    if (fileExists('package.json')) {
+                        sh 'npm install'
+                    } else {
+                        echo "⚠ No package.json found, skipping dependency installation."
+                    }
                 }
             }
         }
@@ -28,7 +32,11 @@ pipeline {
         stage('Build Website') {
             steps {
                 script {
-                    sh 'npm run build'
+                    if (fileExists('package.json')) {
+                        sh 'npm run build'
+                    } else {
+                        echo "⚠ No build step required for static HTML site."
+                    }
                 }
             }
         }
@@ -36,11 +44,12 @@ pipeline {
         stage('Deploy to Render') {
             steps {
                 script {
-                    sh 'echo "Deploying to Render..."'
+                    sh 'echo "🚀 Deploying to Render..."'
                 }
             }
         }
     }
+
 
     post {
         always {
