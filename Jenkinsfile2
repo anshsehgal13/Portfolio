@@ -4,11 +4,11 @@ pipeline {
     environment {
         GITHUB_USERNAME = "anshsehgal03"
         API_TOKEN = "111f6c4ef5414f3179be58d86d9301eef8"
-        API_ENDPOINT = "http://localhost:3000/pipeline-metadata"
+        API_ENDPOINT = "http://localhost:3000/webhook"
         JENKINS_URL = "http://localhost:8080"
         JOB_NAME = "Portfolio1CICD"
-        IV_KEY = "8c17201dbaad82a2aafe93f249ea46a4"
-        SECRET_KEY="111f6c4ef5414f3179be58d86d9301eef8"
+        IV = "8c17201dbaad82a2aafe93f249ea46a4"
+        SECRET_KEY="d7dabd80346e46ab4b02c37520570bf3c563328bfedb453f25e504fd6e164a1c"
     }
 
     stages {
@@ -57,7 +57,7 @@ pipeline {
             script {
                 def API_URL_1 = "http://localhost:8080/job/Portfolio1CICD/${env.BUILD_NUMBER}/api/json"
                 def API_URL_2 = "http://localhost:8080/job/Portfolio1CICD/${env.BUILD_NUMBER}/wfapi/describe"
-                def WEBHOOK_URL = "http://localhost:3000/pipeline-metadata"
+                def WEBHOOK_URL = "http://localhost:3000/webhook"
 
                 def response_1 = sh(script: "curl -s -u '${GITHUB_USERNAME}:${API_TOKEN}' '${API_URL_1}'", returnStdout: true).trim()
                 def response_2 = sh(script: "curl -s -u '${GITHUB_USERNAME}:${API_TOKEN}' '${API_URL_2}'", returnStdout: true).trim()
@@ -74,7 +74,7 @@ pipeline {
                 def encryptedTimestamp = sh(script: """
                     echo -n '${timestamp}' | openssl enc -aes-256-cbc -base64 \
                     -K \$(echo -n '${SECRET_KEY}' | xxd -p | tr -d '\n') \
-                    -iv \$(echo -n '${IV_KEY}' | xxd -p | tr -d '\n')
+                    -iv \$(echo -n '${IV}' | xxd -p | tr -d '\n')
                 """, returnStdout: true).trim()
 
                 sh """
