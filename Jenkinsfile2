@@ -1,1 +1,112 @@
+import groovy.json.JsonSlurperClassic
+import groovy.json.JsonOutput
 
+pipeline {
+    agent any
+
+    environment {
+        JENKINS_USER = "anshsehgal03"
+        JENKINS_TOKEN = "111f6c4ef5414f3179be58d86d9301eef8"
+        API_ENDPOINT = "http://localhost:3000/pipeline-metadata"
+        JENKINS_URL = "http://localhost:8080"
+        JOB_NAME = "Portfolio1CICD"
+    }
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/anshsehgal13/Portfolio/'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    if (fileExists('package.json')) {
+                        sh 'npm install'
+                    } else {
+                        echo "⚠ No package.json found, skipping dependency installation."
+                    }
+                }
+            }
+        }
+
+        stage('Build Website') {
+            steps {
+                script {
+                    if (fileExists('package.json')) {
+                        sh 'npm run build'
+                    } else {
+                        echo "⚠ No build step required for static HTML site."
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Render') {
+            steps {
+                script {
+                    sh 'echo "🚀 Deploying to Render..."'
+                }
+            }
+        }
+    }
+
+ post {
+        always {
+            script {
+                withCredentials([
+                    string(credentialsId: 'github-username', variable: 'GITHUB_USERNAME'),
+                    string(credentialsId: 'api-token', variable: 'API_TOKEN'),
+                    string(credentialsId: 'secret-key', variable: 'SECRET_KEY'),
+                    string(credentialsId: 'iv-key', variable: 'IV_KEY')
+                ]) {
+                    def API_URL_1 = "http://3.111.41.177:8080/job/TestPipeline/${env.BUILD_NUMBER}/api/json"
+                    def API_URL_2 = "http://3.111.41.177:8080/job/TestPipeline/${env.BUILD_NUMBER}/wfapi/describe"
+                    def WEBHOOK_URL = "https://a646-192-245-162-37.ngrok-free.app/webhook"
+
+                    echo "Fetching Jenkins API Data..."
+
+                    // Fetch Jenkins API responses
+                    def response_1 = sh(script: "curl -s -u '${GITHUB_USERNAME}:${API_TOKEN}' '${API_URL_1}'", returnStdout: true).trim()
+                    def response_2 = sh(script: "curl -s -u '${GITHUB_USERNAME}:${API_TOKEN}' '${API_URL_2}'", returnStdout: true).trim()
+
+                    // Check if authentication failed
+                    if (response_1.contains("Error 401") || response_2.contains("Error 401")) {
+                        error "❌ Jenkins API returned 401 Unauthorized. Check your credentials."
+                    }
+
+                    // Construct JSON payload safely
+                    def payload = """{
+                        "api_json": ${groovy.json.JsonOutput.toJson(response_1)},
+                        "wfapi_describe": ${groovy.json.JsonOutput.toJson(response_2)}
+                    }""".trim()
+
+                    echo payload
+
+                    // Compute SHA256 checksum
+                    def checksum = sh(script: "echo -n '${payload}' | sha256sum | awk '{print \$1}'", returnStdout: true).trim()
+                    echo checksum
+
+                    def timestamp = System.currentTimeMillis().toString()
+
+                    // Encrypt timestamp with AES-256-CBC
+                    def encryptedTimestamp = sh(script: """
+                        echo -n '${timestamp}' | openssl enc -aes-256-cbc -base64 \\
+                        -K \$(echo -n '${SECRET_KEY}' | xxd -p | tr -d '\\n') \\
+                        -iv \$(echo -n '${IV_KEY}' | xxd -p | tr -d '\\n')
+                    """, returnStdout: true).trim()
+
+                    // Send the payload with checksum as a header
+                    sh """
+                        curl -X POST '${WEBHOOK_URL}' \\
+                        -H "Content-Type: application/json" \\
+                        -H "X-Payload-Checksum: ${checksum}" \\
+                        -H "X-Encrypted-Timestamp: ${encryptedTimestamp}" \\
+                        -d '${payload}'
+                    """
+                }
+            }
+        }
+    }
+}
