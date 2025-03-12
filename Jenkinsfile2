@@ -1,6 +1,3 @@
-import groovy.json.JsonSlurperClassic
-import groovy.json.JsonOutput
-
 pipeline {
     agent any
 
@@ -10,7 +7,7 @@ pipeline {
         API_ENDPOINT = "http://localhost:3000/pipeline-metadata"
         JENKINS_URL = "http://localhost:8080"
         JOB_NAME = "Portfolio1CICD"
-        IV_KEY=8c17201dbaad82a2aafe93f249ea46a4
+        IV_KEY = "8c17201dbaad82a2aafe93f249ea46a4"
     }
 
     stages {
@@ -23,11 +20,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    if (fileExists('package.json')) {
-                        sh 'npm install'
-                    } else {
-                        echo "⚠ No package.json found, skipping dependency installation."
-                    }
+                    sh 'npm install'
                 }
             }
         }
@@ -35,11 +28,7 @@ pipeline {
         stage('Build Website') {
             steps {
                 script {
-                    if (fileExists('package.json')) {
-                        sh 'npm run build'
-                    } else {
-                        echo "⚠ No build step required for static HTML site."
-                    }
+                    sh 'npm run build'
                 }
             }
         }
@@ -47,66 +36,44 @@ pipeline {
         stage('Deploy to Render') {
             steps {
                 script {
-                    sh 'echo "🚀 Deploying to Render..."'
+                    sh 'echo "Deploying to Render..."'
                 }
             }
         }
     }
 
- post {
+    post {
         always {
             script {
-                withCredentials([
-                    string(credentialsId: 'github-username', variable: 'GITHUB_USERNAME'),
-                    string(credentialsId: 'api-token', variable: 'API_TOKEN'),
-                    string(credentialsId: 'secret-key', variable: 'SECRET_KEY'),
-                    string(credentialsId: 'iv-key', variable: 'IV_KEY')
-                ]) {
-                    def API_URL_1 = "http://localhost:8080/job/Portfolio1CICD//${env.BUILD_NUMBER}/api/json"
-                    def API_URL_2 = "http://localhost:8080/job/Portfolio1CICD//${env.BUILD_NUMBER}/wfapi/describe"
-                    def WEBHOOK_URL = "http://localhost:3000/pipeline-metadata"
+                def API_URL_1 = "http://localhost:8080/job/Portfolio1CICD/${env.BUILD_NUMBER}/api/json"
+                def API_URL_2 = "http://localhost:8080/job/Portfolio1CICD/${env.BUILD_NUMBER}/wfapi/describe"
+                def WEBHOOK_URL = "http://localhost:3000/pipeline-metadata"
 
-                    echo "Fetching Jenkins API Data..."
+                def response_1 = sh(script: "curl -s -u '${GITHUB_USERNAME}:${API_TOKEN}' '${API_URL_1}'", returnStdout: true).trim()
+                def response_2 = sh(script: "curl -s -u '${GITHUB_USERNAME}:${API_TOKEN}' '${API_URL_2}'", returnStdout: true).trim()
 
-                    // Fetch Jenkins API responses
-                    def response_1 = sh(script: "curl -s -u '${GITHUB_USERNAME}:${API_TOKEN}' '${API_URL_1}'", returnStdout: true).trim()
-                    def response_2 = sh(script: "curl -s -u '${GITHUB_USERNAME}:${API_TOKEN}' '${API_URL_2}'", returnStdout: true).trim()
+                def payload = """{
+                    \"api_json\": ${groovy.json.JsonOutput.toJson(response_1)},
+                    \"wfapi_describe\": ${groovy.json.JsonOutput.toJson(response_2)}
+                }""".trim()
 
-                    // Check if authentication failed
-                    if (response_1.contains("Error 401") || response_2.contains("Error 401")) {
-                        error "❌ Jenkins API returned 401 Unauthorized. Check your credentials."
-                    }
+                def checksum = sh(script: "echo -n '${payload}' | sha256sum | awk '{print \$1}'", returnStdout: true).trim()
+                
+                def timestamp = System.currentTimeMillis().toString()
 
-                    // Construct JSON payload safely
-                    def payload = """{
-                        "api_json": ${groovy.json.JsonOutput.toJson(response_1)},
-                        "wfapi_describe": ${groovy.json.JsonOutput.toJson(response_2)}
-                    }""".trim()
+                def encryptedTimestamp = sh(script: """
+                    echo -n '${timestamp}' | openssl enc -aes-256-cbc -base64 \
+                    -K \$(echo -n '${SECRET_KEY}' | xxd -p | tr -d '\n') \
+                    -iv \$(echo -n '${IV_KEY}' | xxd -p | tr -d '\n')
+                """, returnStdout: true).trim()
 
-                    echo payload
-
-                    // Compute SHA256 checksum
-                    def checksum = sh(script: "echo -n '${payload}' | sha256sum | awk '{print \$1}'", returnStdout: true).trim()
-                    echo checksum
-
-                    def timestamp = System.currentTimeMillis().toString()
-
-                    // Encrypt timestamp with AES-256-CBC
-                    def encryptedTimestamp = sh(script: """
-                        echo -n '${timestamp}' | openssl enc -aes-256-cbc -base64 \\
-                        -K \$(echo -n '${SECRET_KEY}' | xxd -p | tr -d '\\n') \\
-                        -iv \$(echo -n '${IV_KEY}' | xxd -p | tr -d '\\n')
-                    """, returnStdout: true).trim()
-
-                    // Send the payload with checksum as a header
-                    sh """
-                        curl -X POST '${WEBHOOK_URL}' \\
-                        -H "Content-Type: application/json" \\
-                        -H "X-Payload-Checksum: ${checksum}" \\
-                        -H "X-Encrypted-Timestamp: ${encryptedTimestamp}" \\
-                        -d '${payload}'
-                    """
-                }
+                sh """
+                    curl -X POST '${WEBHOOK_URL}' \
+                    -H "Content-Type: application/json" \
+                    -H "X-Payload-Checksum: ${checksum}" \
+                    -H "X-Encrypted-Timestamp: ${encryptedTimestamp}" \
+                    -d '${payload}'
+                """
             }
         }
     }
