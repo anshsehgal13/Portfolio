@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     environment {
-        GITHUB_USERNAME = "anshsehgal03"
+        JENKINS_USERNAME = "anshsehgal03"
         API_TOKEN = "111f6c4ef5414f3179be58d86d9301eef8"
         API_ENDPOINT = "http://localhost:3000/webhook"
         JENKINS_URL = "http://localhost:8080"
         JOB_NAME = "Portfolio1CICD"
-        IV = "783c88284582f0116279dee8d657b8e0"
-        SECRET_KEY="d7dabd80346e46ab4b02c37520570bf3c563328bfedb453f25e504fd6e164a1c"
+        IV = "1234567890123456"
+        SECRET_KEY="1234567890abcdeffedcba0987654321"
     }
 
     stages {
@@ -55,35 +55,45 @@ pipeline {
     post {
         always {
             script {
-                def API_URL_1 = "http://localhost:8080/job/Portfolio1CICD/${env.BUILD_NUMBER}/api/json"
-                def API_URL_2 = "http://localhost:8080/job/Portfolio1CICD/${env.BUILD_NUMBER}/wfapi/describe"
-                def WEBHOOK_URL = "http://localhost:3000/webhook"
 
-                def response_1 = sh(script: "curl -s -u '${GITHUB_USERNAME}:${API_TOKEN}' '${API_URL_1}'", returnStdout: true).trim()
-                def response_2 = sh(script: "curl -s -u '${GITHUB_USERNAME}:${API_TOKEN}' '${API_URL_2}'", returnStdout: true).trim()
+                    def API_URL_1 = "${env.JENKINS_URL}/job/${env.JOB_NAME}/${env.BUILD_NUMBER}/api/json"
+                    def API_URL_2 = "${env.JENKINS_URL}/job/${env.JOB_NAME}/${env.BUILD_NUMBER}/wfapi/describe"
+                    def WEBHOOK_URL = "http://localhost:3000/webhook"
 
-                def payload = """{
-                    \"api_json\": ${groovy.json.JsonOutput.toJson(response_1)},
-                    \"wfapi_describe\": ${groovy.json.JsonOutput.toJson(response_2)}
-                }""".trim()
+                    // Fetch Jenkins API responses
+                    def buildData = sh(script: "curl -s -u '${JENKINS_USERNAME}:${API_TOKEN}' '${API_URL_1}'", returnStdout: true).trim()
+                    def stageData = sh(script: "curl -s -u '${JENKINS_USERNAME}:${API_TOKEN}' '${API_URL_2}'", returnStdout: true).trim()
+                    
+                    
+                    // Compute Checksum
+                    def checksum_build = sh(script: "echo -n '${buildData}' | sha256sum | awk '{print \$1}'", returnStdout: true).trim()
+                    def checksum_stage = sh(script: "echo -n '${stageData}' | sha256sum | awk '{print \$1}'", returnStdout: true).trim()
+                    
+                    //Make the payload
+                    def payload = [
+                        build_data: buildData,
+                        stage_data: stageData
+                    ]
+                    def jsonPayload = groovy.json.JsonOutput.toJson(payload)
+                    
+                    // Encrypt timestamp with AES-256-CBC
+                    def timestamp = System.currentTimeMillis().toString()
+                    def encryptedTimestamp = sh(script: """
+                        echo -n '${timestamp}' | openssl enc -aes-256-cbc -base64 \\
+                        -K \$(echo -n '${SECRET_KEY}' | xxd -p | tr -d '\\n') \\
+                        -iv \$(echo -n '${IV_KEY}' | xxd -p | tr -d '\\n')
+                    """, returnStdout: true).trim()
 
-                def checksum = sh(script: "echo -n '${payload}' | sha256sum | awk '{print \$1}'", returnStdout: true).trim()
-                
-                def timestamp = System.currentTimeMillis().toString()
 
-                def encryptedTimestamp = sh(script: """
-                    echo -n '${timestamp}' | openssl enc -aes-256-cbc -base64 \
-                    -K \$(echo -n '${SECRET_KEY}' | xxd -p | tr -d '\n') \
-                    -iv \$(echo -n '${IV}' | xxd -p | tr -d '\n')
-                """, returnStdout: true).trim()
-
-                sh """
-                    curl -X POST '${WEBHOOK_URL}' \
-                    -H "Content-Type: application/json" \
-                    -H "X-Payload-Checksum: ${checksum}" \
-                    -H "X-Encrypted-Timestamp: ${encryptedTimestamp}" \
-                    -d '${payload}'
-                """
+                    // Send the payload with checksum as a header
+                    sh """
+                        curl -X POST '${WEBHOOK_URL}' \\
+                        -H "Content-Type: application/json" \\
+                        -H "X-Encrypted-Timestamp: ${encryptedTimestamp}" \\
+                        -H "X-Checksum-Build: ${checksum_build}" \\
+                        -H "X-Checksum-Stage: ${checksum_stage}" \\
+                        -d '${jsonPayload}'
+                    """
             }
         }
     }
