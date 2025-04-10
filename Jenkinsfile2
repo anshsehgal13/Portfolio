@@ -46,7 +46,7 @@ pipeline {
             steps {
                 script {
                     sh 'echo "🚀 Deploying to Render..."'
-                    sh 'echo exit 1'
+                    sh 'exit 1'
                 }
             }
         }
