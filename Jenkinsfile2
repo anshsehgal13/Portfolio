@@ -25,7 +25,7 @@ pipeline {
                         sh 'npm install'
                     } else {
                         echo "⚠ No package.json found, skipping dependency installation."
-                        error("Could not install npm package")
+                        sh 'exit 1'
                     }
                 }
             }
