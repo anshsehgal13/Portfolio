@@ -25,7 +25,6 @@ pipeline {
                         sh 'npm install'
                     } else {
                         echo "⚠ No package.json found, skipping dependency installation."
-                        sh 'exit 1'
                     }
                 }
             }
